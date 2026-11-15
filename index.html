@@ -1,0 +1,613 @@
+<!-- Version: 1.1.0 | Last Modified: 2026-11-15 14:23 -->
+<!--
+File Description:
+Single-file HTML application (HTML + CSS + JS consolidated) for the Usage Limits & Linear Target Gauge.
+Displays countdowns and target linear usage percentages for 5-hour and weekly cycles,
+and allows users to adjust and persist reset dates/times locally on the device.
+
+Change Log:
+- 1.1.0 (2026-11-15 14:23): Consolidated HTML, CSS, and JS modules into a single self-contained index.html file per user request.
+- 1.0.0 (2026-11-15 14:21): Initial modular release configured with screenshot defaults (5-hour reset at Nov 15, 2026 16:11 and Weekly reset at Nov 18, 2026 12:11).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usage Limit Gauge</title>
+  <style>
+    :root {
+      /* Configurable UI Theme Variables */
+      --bg-color: #0e0e10;
+      --card-bg: #1c1c1f;
+      --card-border: #2c2c30;
+      --text-primary: #f1f1f3;
+      --text-secondary: #9aa0a6;
+      --accent-blue: #8ab4f8;
+      --accent-btn: #1a56db;
+      --under-budget-green: #4ade80;
+      --over-budget-amber: #fbbf24;
+      --over-budget-red: #f87171;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      padding: 20px 16px;
+      line-height: 1.5;
+    }
+
+    .app-container {
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .app-header {
+      margin-bottom: 20px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+    }
+
+    .badge {
+      background-color: #2c2c30;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .target-pct {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+    }
+
+    .progress-track {
+      position: relative;
+      height: 10px;
+      background-color: #09090b;
+      border-radius: 999px;
+      overflow: visible;
+      margin-bottom: 16px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background-color: var(--accent-blue);
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    .actual-marker {
+      position: absolute;
+      top: -4px;
+      width: 4px;
+      height: 18px;
+      background-color: #ffffff;
+      border-radius: 2px;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+      left: 0%;
+      transition: left 0.25s ease;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .metric-box {
+      background-color: rgba(255, 255, 255, 0.03);
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .metric-label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .metric-value {
+      font-size: 1rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-value.highlight {
+      color: var(--accent-blue);
+    }
+
+    .reset-subtext {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .settings-hint {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin: 6px 0 14px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background-color: #121215;
+      color: var(--text-primary);
+      font-size: 0.92rem;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--card-border);
+      margin: 14px 0;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      background-color: var(--accent-btn);
+      color: #ffffff;
+    }
+
+    .btn.secondary {
+      background-color: #2c2c30;
+      color: var(--text-primary);
+    }
+
+    .status-msg {
+      font-size: 0.8rem;
+      color: var(--under-budget-green);
+      margin-top: 10px;
+      min-height: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="title-row">
+        <h1>Usage Limits Gauge</h1>
+        <span class="badge">PRO</span>
+      </div>
+      <p class="subtitle" id="current-time-display">Loading current time...</p>
+    </header>
+
+    <!-- 5-Hour Limit Card -->
+    <section class="card">
+      <div class="card-header">
+        <h2>5-Hour Limit Cycle</h2>
+        <span class="target-pct" id="five-hr-target-pct">--% target</span>
+      </div>
+      
+      <div class="progress-track" title="Linear Target Pace (Blue Bar) vs Actual Usage (White Marker)">
+        <div class="progress-fill" id="five-hr-target-bar"></div>
+        <div class="actual-marker" id="five-hr-actual-marker" title="Actual Usage"></div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="metric-label">Time Remaining</span>
+          <span class="metric-value" id="five-hr-remaining">--h --m --s</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Time Elapsed</span>
+          <span class="metric-value" id="five-hr-elapsed">--h --m --s</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Linear Target Usage</span>
+          <span class="metric-value highlight" id="five-hr-linear">--%</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Actual vs Target</span>
+          <span class="metric-value" id="five-hr-diff">--</span>
+        </div>
+      </div>
+      <p class="reset-subtext" id="five-hr-reset-label">Resets at --</p>
+    </section>
+
+    <!-- Weekly Limit Card -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Weekly Limit Cycle</h2>
+        <span class="target-pct" id="weekly-target-pct">--% target</span>
+      </div>
+
+      <div class="progress-track" title="Linear Target Pace (Blue Bar) vs Actual Usage (White Marker)">
+        <div class="progress-fill" id="weekly-target-bar"></div>
+        <div class="actual-marker" id="weekly-actual-marker" title="Actual Usage"></div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="metric-label">Time Remaining</span>
+          <span class="metric-value" id="weekly-remaining">--d --h --m</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Time Elapsed</span>
+          <span class="metric-value" id="weekly-elapsed">--d --h --m</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Linear Target Usage</span>
+          <span class="metric-value highlight" id="weekly-linear">--%</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Actual vs Target</span>
+          <span class="metric-value" id="weekly-diff">--</span>
+        </div>
+      </div>
+      <p class="reset-subtext" id="weekly-reset-label">Resets --</p>
+    </section>
+
+    <!-- Settings & Adjustments Card -->
+    <section class="card settings-card">
+      <h2>Adjust Reset Dates & Actual Usage</h2>
+      <p class="settings-hint">Stored locally on your device. If a reset time passes, it automatically rolls forward to the next cycle unless manually edited.</p>
+      
+      <div class="form-group">
+        <label for="five-hr-reset-input">Next 5-Hour Reset Date & Time</label>
+        <input type="datetime-local" id="five-hr-reset-input">
+      </div>
+
+      <div class="form-group">
+        <label for="five-hr-actual-input">Current 5-Hour Actual Usage (%)</label>
+        <input type="number" id="five-hr-actual-input" min="0" max="100" step="0.1">
+      </div>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label for="weekly-reset-input">Next Weekly Reset Date & Time</label>
+        <input type="datetime-local" id="weekly-reset-input">
+      </div>
+
+      <div class="form-group">
+        <label for="weekly-actual-input">Current Weekly Actual Usage (%)</label>
+        <input type="number" id="weekly-actual-input" min="0" max="100" step="0.1">
+      </div>
+
+      <div class="button-row">
+        <button id="save-btn" class="btn primary">Save Locally</button>
+        <button id="reset-defaults-btn" class="btn secondary">Restore Screenshot Defaults</button>
+      </div>
+      <p id="status-msg" class="status-msg"></p>
+    </section>
+  </div>
+
+  <script>
+    // ============================================================================
+    // Configurable Constants & Default Screenshot Values
+    // ============================================================================
+    const STORAGE_KEY = 'gemini_usage_gauge_config_v1';
+    const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;          // 5 hours in milliseconds
+    const WEEKLY_MS = 7 * 24 * 60 * 60 * 1000;        // 7 days in milliseconds
+    const UI_REFRESH_INTERVAL_MS = 1000;              // 1-second update interval
+
+    const DEFAULT_CONFIG = {
+      // Screenshot shows "Resets at 16:11" on Nov 15, 2026 and "24% used"
+      fiveHourResetISO: '2026-11-15T16:11',
+      fiveHourActualPct: 24,
+      // Screenshot shows "Resets November 18 at 12:11" and "61% used"
+      weeklyResetISO: '2026-11-18T12:11',
+      weeklyActualPct: 61
+    };
+
+    // ============================================================================
+    // Local Storage Procedures
+    // ============================================================================
+
+    /**
+     * Loads the user configuration from localStorage, falling back to DEFAULT_CONFIG.
+     * @returns {Object} Configuration object containing reset ISO strings and actual percentages.
+     */
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return { ...DEFAULT_CONFIG };
+        }
+        const parsed = JSON.parse(raw);
+        return {
+          fiveHourResetISO: parsed.fiveHourResetISO || DEFAULT_CONFIG.fiveHourResetISO,
+          fiveHourActualPct: typeof parsed.fiveHourActualPct === 'number' ? parsed.fiveHourActualPct : DEFAULT_CONFIG.fiveHourActualPct,
+          weeklyResetISO: parsed.weeklyResetISO || DEFAULT_CONFIG.weeklyResetISO,
+          weeklyActualPct: typeof parsed.weeklyActualPct === 'number' ? parsed.weeklyActualPct : DEFAULT_CONFIG.weeklyActualPct
+        };
+      } catch (err) {
+        console.warn('Failed to parse stored config, using defaults:', err);
+        return { ...DEFAULT_CONFIG };
+      }
+    }
+
+    /**
+     * Saves the provided configuration object to localStorage.
+     * @param {Object} config - Configuration object to persist.
+     */
+    function saveConfig(config) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      } catch (err) {
+        console.error('Failed to save config to localStorage:', err);
+      }
+    }
+
+    /**
+     * Resets localStorage back to the initial screenshot defaults.
+     * @returns {Object} The restored default configuration object.
+     */
+    function resetToDefaults() {
+      saveConfig(DEFAULT_CONFIG);
+      return { ...DEFAULT_CONFIG };
+    }
+
+    // ============================================================================
+    // Cycle & Linear Target Calculation Procedures
+    // ============================================================================
+
+    /**
+     * Rolls a target reset timestamp forward by cycleDurationMs if the reset is in the past.
+     * @param {number} resetMs - Target reset timestamp in ms.
+     * @param {number} nowMs - Current timestamp in ms.
+     * @param {number} cycleDurationMs - Length of one cycle in ms.
+     * @returns {number} Effective next reset timestamp in ms.
+     */
+    function getEffectiveNextReset(resetMs, nowMs, cycleDurationMs) {
+      let effective = resetMs;
+      if (isNaN(effective)) return nowMs + cycleDurationMs;
+      while (effective <= nowMs) {
+        effective += cycleDurationMs;
+      }
+      return effective;
+    }
+
+    /**
+     * Calculates cycle metrics for a given reset time and cycle duration.
+     * Assumes linear usage from 0% at cycle start to 100% at cycle reset.
+     * @param {string} resetISO - Local datetime-local ISO string (YYYY-MM-DDTHH:mm).
+     * @param {number} nowMs - Current timestamp in ms.
+     * @param {number} cycleDurationMs - Total duration of the cycle in ms.
+     * @returns {Object} Metrics including remainingMs, elapsedMs, targetPct, and effectiveResetDate.
+     */
+    function calculateCycleMetrics(resetISO, nowMs, cycleDurationMs) {
+      const parsedResetMs = new Date(resetISO).getTime();
+      const effectiveResetMs = getEffectiveNextReset(parsedResetMs, nowMs, cycleDurationMs);
+      const cycleStartMs = effectiveResetMs - cycleDurationMs;
+
+      const remainingMs = Math.max(0, effectiveResetMs - nowMs);
+      const elapsedMs = Math.max(0, Math.min(cycleDurationMs, nowMs - cycleStartMs));
+      const targetPct = (elapsedMs / cycleDurationMs) * 100;
+
+      return {
+        effectiveResetDate: new Date(effectiveResetMs),
+        cycleStartDate: new Date(cycleStartMs),
+        remainingMs,
+        elapsedMs,
+        targetPct
+      };
+    }
+
+    /**
+     * Formats milliseconds into a readable duration string.
+     * @param {number} ms - Duration in milliseconds.
+     * @param {boolean} includeDays - Whether to include days in output.
+     * @returns {string} Formatted duration string.
+     */
+    function formatDuration(ms, includeDays = false) {
+      const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      const pad = (n) => String(n).padStart(2, '0');
+      if (includeDays) {
+        return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+      }
+      const totalHours = days * 24 + hours;
+      return `${totalHours}h ${pad(minutes)}m ${pad(seconds)}s`;
+    }
+
+    // ============================================================================
+    // UI Controller Procedures
+    // ============================================================================
+
+    let activeConfig = loadConfig();
+
+    /**
+     * Populates the input fields from the active configuration object.
+     * @param {Object} config - Configuration containing reset times and actual usage.
+     */
+    function populateInputs(config) {
+      document.getElementById('five-hr-reset-input').value = config.fiveHourResetISO;
+      document.getElementById('five-hr-actual-input').value = config.fiveHourActualPct;
+      document.getElementById('weekly-reset-input').value = config.weeklyResetISO;
+      document.getElementById('weekly-actual-input').value = config.weeklyActualPct;
+    }
+
+    /**
+     * Updates the pace comparison element showing Actual vs Linear Target usage.
+     * @param {HTMLElement} el - DOM element to update.
+     * @param {number} actualPct - User's actual usage percentage.
+     * @param {number} targetPct - Calculated linear target percentage.
+     */
+    function renderPaceDiff(el, actualPct, targetPct) {
+      const diff = actualPct - targetPct;
+      const sign = diff > 0 ? '+' : '';
+      el.textContent = `${actualPct.toFixed(1)}% (${sign}${diff.toFixed(1)}%)`;
+      if (diff <= 0) {
+        el.style.color = 'var(--under-budget-green)';
+      } else if (diff <= 10) {
+        el.style.color = 'var(--over-budget-amber)';
+      } else {
+        el.style.color = 'var(--over-budget-red)';
+      }
+    }
+
+    /**
+     * Main render tick: calculates current 5-hour and weekly cycle metrics and updates DOM.
+     */
+    function updateDashboard() {
+      const now = new Date();
+      const nowMs = now.getTime();
+
+      document.getElementById('current-time-display').textContent =
+        `Current Time: ${now.toLocaleString([], { dateStyle: 'medium', timeStyle: 'medium' })}`;
+
+      // 1. 5-Hour Cycle Calculation
+      const fiveHr = calculateCycleMetrics(activeConfig.fiveHourResetISO, nowMs, FIVE_HOUR_MS);
+      const fiveHrTargetStr = `${fiveHr.targetPct.toFixed(1)}%`;
+      document.getElementById('five-hr-target-pct').textContent = `${fiveHrTargetStr} linear target`;
+      document.getElementById('five-hr-target-bar').style.width = `${Math.min(100, fiveHr.targetPct)}%`;
+      document.getElementById('five-hr-actual-marker').style.left = `${Math.min(100, activeConfig.fiveHourActualPct)}%`;
+      document.getElementById('five-hr-remaining').textContent = formatDuration(fiveHr.remainingMs, false);
+      document.getElementById('five-hr-elapsed').textContent = formatDuration(fiveHr.elapsedMs, false);
+      document.getElementById('five-hr-linear').textContent = fiveHrTargetStr;
+      renderPaceDiff(
+        document.getElementById('five-hr-diff'),
+        activeConfig.fiveHourActualPct,
+        fiveHr.targetPct
+      );
+      document.getElementById('five-hr-reset-label').textContent =
+        `Cycle: ${fiveHr.cycleStartDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → Resets ${fiveHr.effectiveResetDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+
+      // 2. Weekly Cycle Calculation
+      const weekly = calculateCycleMetrics(activeConfig.weeklyResetISO, nowMs, WEEKLY_MS);
+      const weeklyTargetStr = `${weekly.targetPct.toFixed(1)}%`;
+      document.getElementById('weekly-target-pct').textContent = `${weeklyTargetStr} linear target`;
+      document.getElementById('weekly-target-bar').style.width = `${Math.min(100, weekly.targetPct)}%`;
+      document.getElementById('weekly-actual-marker').style.left = `${Math.min(100, activeConfig.weeklyActualPct)}%`;
+      document.getElementById('weekly-remaining').textContent = formatDuration(weekly.remainingMs, true);
+      document.getElementById('weekly-elapsed').textContent = formatDuration(weekly.elapsedMs, true);
+      document.getElementById('weekly-linear').textContent = weeklyTargetStr;
+      renderPaceDiff(
+        document.getElementById('weekly-diff'),
+        activeConfig.weeklyActualPct,
+        weekly.targetPct
+      );
+      document.getElementById('weekly-reset-label').textContent =
+        `Cycle: ${weekly.cycleStartDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} → Resets ${weekly.effectiveResetDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    /**
+     * Reads user adjustments from DOM inputs, persists them to localStorage, and refreshes UI.
+     */
+    function handleSaveSettings() {
+      const fiveHourResetISO = document.getElementById('five-hr-reset-input').value;
+      const fiveHourActualPct = parseFloat(document.getElementById('five-hr-actual-input').value) || 0;
+      const weeklyResetISO = document.getElementById('weekly-reset-input').value;
+      const weeklyActualPct = parseFloat(document.getElementById('weekly-actual-input').value) || 0;
+
+      activeConfig = {
+        fiveHourResetISO,
+        fiveHourActualPct,
+        weeklyResetISO,
+        weeklyActualPct
+      };
+
+      saveConfig(activeConfig);
+      updateDashboard();
+
+      const statusEl = document.getElementById('status-msg');
+      statusEl.textContent = 'Settings saved locally to device.';
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    }
+
+    /**
+     * Restores screenshot default settings and updates localStorage and UI.
+     */
+    function handleResetDefaults() {
+      activeConfig = resetToDefaults();
+      populateInputs(activeConfig);
+      updateDashboard();
+
+      const statusEl = document.getElementById('status-msg');
+      statusEl.textContent = 'Restored screenshot defaults.';
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    }
+
+    // Initialize application on DOM load
+    document.addEventListener('DOMContentLoaded', () => {
+      populateInputs(activeConfig);
+      updateDashboard();
+      setInterval(updateDashboard, UI_REFRESH_INTERVAL_MS);
+
+      document.getElementById('save-btn').addEventListener('click', handleSaveSettings);
+      document.getElementById('reset-defaults-btn').addEventListener('click', handleResetDefaults);
+    });
+  </script>
+</body>
+</html>
